@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Question Cards</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🎴 Question Cards</h1>
+            <p>Conversation starters for meaningful connections</p>
+        </header>
+
+        <!-- Setup Phase -->
+        <div id="setup-phase" class="phase active">
+            <div class="setup-container">
+                <h2>Customize Your Questions</h2>
+                
+                <!-- Category Filters -->
+                <div class="filters-section">
+                    <h3>Filter by Categories</h3>
+                    <p class="filter-help">Set maximum intensity levels (1-5) for each category:</p>
+                    
+                    <div class="filter-grid">
+                        <div class="filter-item">
+                            <label for="vulnerability">💔 Vulnerability</label>
+                            <input type="range" id="vulnerability" min="1" max="5" value="4" class="filter-slider">
+                            <span class="filter-value">4</span>
+                        </div>
+                        
+                        <div class="filter-item">
+                            <label for="sexuality">💕 Sexuality</label>
+                            <input type="range" id="sexuality" min="1" max="5" value="1" class="filter-slider">
+                            <span class="filter-value">1</span>
+                        </div>
+                        
+                        <div class="filter-item">
+                            <label for="personal-history">📖 Personal History</label>
+                            <input type="range" id="personal-history" min="1" max="5" value="4" class="filter-slider">
+                            <span class="filter-value">4</span>
+                        </div>
+                        
+                        <div class="filter-item">
+                            <label for="humor">😄 Humor</label>
+                            <input type="range" id="humor" min="1" max="5" value="4" class="filter-slider">
+                            <span class="filter-value">4</span>
+                        </div>
+                        
+                        <div class="filter-item">
+                            <label for="self-reflection">🤔 Self-Reflection</label>
+                            <input type="range" id="self-reflection" min="1" max="5" value="4" class="filter-slider">
+                            <span class="filter-value">4</span>
+                        </div>
+                        
+                        <div class="filter-item">
+                            <label for="embarrassment">😳 Embarrassment Potential</label>
+                            <input type="range" id="embarrassment" min="1" max="5" value="4" class="filter-slider">
+                            <span class="filter-value">4</span>
+                        </div>
+                        
+                        <div class="filter-item">
+                            <label for="depth">🔗 Depth of Connection</label>
+                            <input type="range" id="depth" min="1" max="5" value="4" class="filter-slider">
+                            <span class="filter-value">4</span>
+                        </div>
+                        
+                        <div class="filter-item">
+                            <label for="conflict">⚡ Conflict Potential</label>
+                            <input type="range" id="conflict" min="1" max="5" value="1" class="filter-slider">
+                            <span class="filter-value">1</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Number of Questions -->
+                <div class="question-count-section">
+                    <label for="question-count">How many questions do you want?</label>
+                    <input type="number" id="question-count" min="1" max="50" value="10" class="question-input">
+                    <div class="available-count">
+                        Eligible questions: <span id="available-count">0</span>
+                    </div>
+                </div>
+
+                <!-- Start Button -->
+                <button id="start-game" class="start-btn" disabled>
+                    Start Drawing Cards
+                </button>
+            </div>
+        </div>
+
+        <!-- Game Phase -->
+        <div id="game-phase" class="phase">
+            <div class="game-container">
+                <!-- Progress -->
+                <div class="progress-section">
+                    <div class="progress-info">
+                        <span id="current-card">1</span> of <span id="total-cards">10</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                </div>
+
+                <!-- Question Card -->
+                <div class="question-card">
+                    <div class="card-content">
+                        <div class="question-text" id="question-text">
+                            Loading your question...
+                        </div>
+                        
+                        <div class="question-meta">
+                            <div class="category-tags" id="category-tags">
+                                <!-- Category indicators will be added here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <div class="navigation">
+                    <button id="prev-btn" class="nav-btn" disabled>
+                        ← Previous
+                    </button>
+                    <button id="next-btn" class="nav-btn">
+                        Next →
+                    </button>
+                </div>
+
+                <!-- Actions -->
+                <div class="game-actions">
+                    <button id="new-game-btn" class="action-btn secondary">
+                        🔄 New Game
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
