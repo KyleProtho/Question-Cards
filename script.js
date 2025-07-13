@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load questions from JSON file
 async function loadQuestions() {
     try {
-        const response = await fetch('data/truth_or_drink.json');
+        const response = await fetch('all_questions.json');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
