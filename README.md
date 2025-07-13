@@ -110,10 +110,6 @@ question_cards/
 3. Test the application with your new questions
 4. Submit your changes
 
-## 📝 License
-
-This project is open source and available under the MIT License.
-
 ## 🎲 Current Dataset
 
-The application comes with 412 carefully curated conversation starter questions designed to foster meaningful connections while respecting boundaries through the category filtering system.
+The application comes nearly 800 carefully curated conversation starter questions designed to foster meaningful connections while respecting boundaries through the category filtering system.
