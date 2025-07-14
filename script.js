@@ -154,9 +154,9 @@ function checkStartButtonState() {
     const requestedCount = parseInt(questionCountInput.value);
     const availableCount = filteredQuestions.length;
     
-    startBtn.disabled = requestedCount > availableCount || requestedCount < 1 || availableCount === 0;
+    startBtn.disabled = requestedCount > availableCount || requestedCount < 1 || requestedCount > 16 || availableCount === 0;
     
-    if (requestedCount > availableCount) {
+    if (requestedCount > availableCount || requestedCount > 16) {
         questionCountInput.style.borderColor = '#e74c3c';
     } else {
         questionCountInput.style.borderColor = '#ddd';
@@ -169,6 +169,11 @@ function startGame() {
     
     if (requestedCount > filteredQuestions.length) {
         alert('Not enough questions available with current filters!');
+        return;
+    }
+    
+    if (requestedCount < 1 || requestedCount > 16) {
+        alert('Please select between 1 and 16 questions!');
         return;
     }
     
