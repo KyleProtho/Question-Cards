@@ -16,6 +16,14 @@ const categoryMapping = {
     'conflict': 9
 };
 
+// Deck mapping from sourceFile to display names
+const deckMapping = {
+    'the_36_questions.json': '36 Questions',
+    'the_and_dating.json': 'Dating',
+    'the_and_strangers.json': 'Strangers',
+    'truth_or_drink.json': 'Truth or Drink'
+};
+
 const categoryNames = {
     'vulnerability': 'Vulnerable',
     'sexuality': 'Intimate',
@@ -75,6 +83,12 @@ function setupEventListeners() {
     nextBtn.addEventListener('click', showNextQuestion);
     questionCountInput.addEventListener('input', updateAvailableCount);
     
+    // Deck filter event listeners
+    const deckCheckboxes = document.querySelectorAll('.deck-checkbox input[type="checkbox"]');
+    deckCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateAvailableCount);
+    });
+    
     // Add touch/swipe support for mobile
     let startX = 0;
     let startY = 0;
@@ -121,7 +135,15 @@ function setupFilterSliders() {
 
 // Update available question count based on filters
 function updateAvailableCount() {
+    // Get selected decks
+    const selectedDecks = getSelectedDecks();
+    
     filteredQuestions = allQuestions.filter(question => {
+        // Check if question is from a selected deck
+        const isFromSelectedDeck = selectedDecks.includes(question.sourceFile);
+        if (!isFromSelectedDeck) return false;
+        
+        // Check category filters
         return Object.keys(categoryMapping).every(category => {
             const sliderValue = parseInt(document.getElementById(category).value);
             const questionValue = getQuestionCategoryValue(question, category);
@@ -131,6 +153,41 @@ function updateAvailableCount() {
     
     availableCountSpan.textContent = `${filteredQuestions.length} / ${allQuestions.length}`;
     checkStartButtonState();
+}
+
+// Get selected decks from checkboxes
+function getSelectedDecks() {
+    const selectedDecks = [];
+    const deckCheckboxes = document.querySelectorAll('.deck-checkbox input[type="checkbox"]');
+    
+    deckCheckboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            // Map checkbox ID to sourceFile
+            const checkboxId = checkbox.id;
+            let sourceFile = '';
+            
+            switch(checkboxId) {
+                case 'deck-36-questions':
+                    sourceFile = 'the_36_questions.json';
+                    break;
+                case 'deck-dating':
+                    sourceFile = 'the_and_dating.json';
+                    break;
+                case 'deck-strangers':
+                    sourceFile = 'the_and_strangers.json';
+                    break;
+                case 'deck-truth-or-drink':
+                    sourceFile = 'truth_or_drink.json';
+                    break;
+            }
+            
+            if (sourceFile) {
+                selectedDecks.push(sourceFile);
+            }
+        }
+    });
+    
+    return selectedDecks;
 }
 
 // Get category value from question object
@@ -306,6 +363,14 @@ function saveFilterPreferences() {
         preferences[category] = document.getElementById(category).value;
     });
     preferences.questionCount = questionCountInput.value;
+    
+    // Save deck preferences
+    preferences.decks = {};
+    const deckCheckboxes = document.querySelectorAll('.deck-checkbox input[type="checkbox"]');
+    deckCheckboxes.forEach(checkbox => {
+        preferences.decks[checkbox.id] = checkbox.checked;
+    });
+    
     localStorage.setItem('questionCardPreferences', JSON.stringify(preferences));
 }
 
@@ -324,6 +389,16 @@ function loadFilterPreferences() {
         if (preferences.questionCount) {
             questionCountInput.value = preferences.questionCount;
         }
+        
+        // Load deck preferences
+        if (preferences.decks) {
+            const deckCheckboxes = document.querySelectorAll('.deck-checkbox input[type="checkbox"]');
+            deckCheckboxes.forEach(checkbox => {
+                if (preferences.decks.hasOwnProperty(checkbox.id)) {
+                    checkbox.checked = preferences.decks[checkbox.id];
+                }
+            });
+        }
     }
 }
 
@@ -332,6 +407,16 @@ Object.keys(categoryMapping).forEach(category => {
     document.getElementById(category).addEventListener('change', saveFilterPreferences);
 });
 questionCountInput.addEventListener('change', saveFilterPreferences);
+
+// Auto-save deck preferences when they change
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        const deckCheckboxes = document.querySelectorAll('.deck-checkbox input[type="checkbox"]');
+        deckCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', saveFilterPreferences);
+        });
+    }, 100);
+});
 
 // Load preferences on startup
 document.addEventListener('DOMContentLoaded', function() {
