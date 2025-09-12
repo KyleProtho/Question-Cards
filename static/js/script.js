@@ -16,8 +16,13 @@ const categoryMapping = {
     'conflict': 9
 };
 
-// Deck mapping from sourceFile to display names (will be populated dynamically)
-let deckMapping = {};
+// Deck mapping from sourceFile to display names
+const deckMapping = {
+    'the_36_questions.json': '36 Questions',
+    'the_and_dating.json': 'Dating',
+    'the_and_strangers.json': 'Strangers',
+    'truth_or_drink.json': 'Truth or Drink'
+};
 
 const categoryNames = {
     'vulnerability': 'Vulnerable',
@@ -47,14 +52,34 @@ const nextBtn = document.getElementById('next-btn');
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
-    loadQuestions();
-    setupEventListeners();
-    setupFilterSliders();
+    console.log('DOM Content Loaded - starting initialization');
+    
+    // Initialize with a delay to ensure everything is ready
+    setTimeout(async () => {
+        try {
+            await loadQuestions();
+            setupEventListeners();
+            console.log('Initialization complete');
+        } catch (error) {
+            console.error('Initialization failed:', error);
+            // Show error message to user
+            const deckContainer = document.querySelector('.deck-checkboxes');
+            const filterContainer = document.querySelector('.filter-grid');
+            
+            if (deckContainer) {
+                deckContainer.innerHTML = '<p style="color: red;">Error loading decks. Please refresh the page.</p>';
+            }
+            if (filterContainer) {
+                filterContainer.innerHTML = '<p style="color: red;">Error loading categories. Please refresh the page.</p>';
+            }
+        }
+    }, 100);
 });
 
-// Load questions from Flask API
+// Load questions from API
 async function loadQuestions() {
     try {
+        console.log('Starting to load questions from API...');
         const response = await fetch('/api/questions');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -64,8 +89,12 @@ async function loadQuestions() {
         console.log(`Loaded ${allQuestions.length} questions from API`);
         
         // Load decks and categories dynamically
+        console.log('Loading decks...');
         await loadDecks();
+        console.log('Loading categories...');
         await loadCategories();
+        
+        console.log('Updating available count...');
         updateAvailableCount();
     } catch (error) {
         console.error('Error loading questions:', error);
@@ -73,114 +102,139 @@ async function loadQuestions() {
     }
 }
 
-// Load decks from Flask API
+// Load decks from API and populate checkboxes
 async function loadDecks() {
     try {
+        console.log('Loading decks from API...');
         const response = await fetch('/api/decks');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const decks = await response.json();
+        console.log('Decks received:', decks);
         
-        // Populate deck mapping
-        deckMapping = {};
+        // Clear existing deck checkboxes
+        const deckContainer = document.querySelector('.deck-checkboxes');
+        console.log('Deck container found:', deckContainer);
+        
+        if (!deckContainer) {
+            throw new Error('Deck container not found in DOM');
+        }
+        
+        deckContainer.innerHTML = '';
+        
+        // Create checkboxes for each deck
         decks.forEach(deck => {
-            deckMapping[deck.filename] = deck.displayName;
-        });
-        
-        // Populate deck checkboxes
-        const deckCheckboxes = document.getElementById('deck-checkboxes');
-        deckCheckboxes.innerHTML = '';
-        
-        decks.forEach(deck => {
-            const checkboxId = `deck-${deck.filename.replace('.json', '').replace('_', '-')}`;
             const label = document.createElement('label');
             label.className = 'deck-checkbox';
-            label.innerHTML = `
-                <input type="checkbox" id="${checkboxId}" checked>
-                <span class="checkmark"></span>
-                ${deck.displayName}
-            `;
-            deckCheckboxes.appendChild(label);
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `deck-${deck.filename.replace('.json', '').replace('_', '-')}`;
+            checkbox.checked = true; // Default to checked
+            
+            const span = document.createElement('span');
+            span.className = 'checkmark';
+            
+            label.appendChild(checkbox);
+            label.appendChild(span);
+            label.appendChild(document.createTextNode(` ${deck.displayName} (${deck.count})`));
+            
+            deckContainer.appendChild(label);
         });
         
-        // Add event listeners to the newly created deck checkboxes
-        const deckCheckboxes = document.querySelectorAll('.deck-checkbox input[type="checkbox"]');
-        deckCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', updateAvailableCount);
-        });
-        
-        console.log('Loaded decks:', deckMapping);
+        console.log(`Loaded ${decks.length} decks from API`);
     } catch (error) {
         console.error('Error loading decks:', error);
+        // Add fallback content if API fails
+        const deckContainer = document.querySelector('.deck-checkboxes');
+        if (deckContainer) {
+            deckContainer.innerHTML = '<p style="color: red;">Error loading decks. Please refresh the page.</p>';
+        }
     }
 }
 
-// Load categories from Flask API
+// Load categories from API and populate sliders
 async function loadCategories() {
     try {
+        console.log('Loading categories from API...');
         const response = await fetch('/api/categories');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const categories = await response.json();
+        console.log('Categories received:', categories);
         
-        // Populate category filters
-        const filterGrid = document.getElementById('filter-grid');
-        filterGrid.innerHTML = '';
+        // Clear existing category sliders
+        const filterContainer = document.querySelector('.filter-grid');
+        console.log('Filter container found:', filterContainer);
         
-        const categoryEmojis = {
-            'vulnerability': '💔',
-            'sexuality': '💕',
-            'personalHistory': '📖',
-            'humor': '😄',
-            'selfReflection': '🤔',
-            'embarrassment': '😳',
-            'depth': '🔗',
-            'conflict': '⚡'
+        if (!filterContainer) {
+            throw new Error('Filter container not found in DOM');
+        }
+        
+        filterContainer.innerHTML = '';
+        
+        // Category display names and emojis
+        const categoryDisplay = {
+            'vulnerability': { name: 'Vulnerability', emoji: '💔' },
+            'sexuality': { name: 'Romance & Sexuality', emoji: '💕' },
+            'personalHistory': { name: 'Personal History', emoji: '📖' },
+            'humor': { name: 'Humor', emoji: '😄' },
+            'selfReflection': { name: 'Self-Reflection', emoji: '🤔' },
+            'embarrassment': { name: 'Embarrassment Potential', emoji: '😳' },
+            'depth': { name: 'Depth of Connection', emoji: '🔗' },
+            'conflict': { name: 'Conflict Potential', emoji: '⚡' }
         };
         
-        const categoryLabels = {
-            'vulnerability': 'Vulnerability',
-            'sexuality': 'Romance & Sexuality',
-            'personalHistory': 'Personal History',
-            'humor': 'Humor',
-            'selfReflection': 'Self-Reflection',
-            'embarrassment': 'Embarrassment Potential',
-            'depth': 'Depth of Connection',
-            'conflict': 'Conflict Potential'
-        };
-        
-        const defaultValues = {
-            'vulnerability': 4,
-            'sexuality': 1,
-            'personalHistory': 5,
-            'humor': 5,
-            'selfReflection': 5,
-            'embarrassment': 4,
-            'depth': 5,
-            'conflict': 1
-        };
-        
+        // Create sliders for each category
         categories.forEach(category => {
+            const display = categoryDisplay[category] || { name: category, emoji: '📋' };
+            
             const filterItem = document.createElement('div');
             filterItem.className = 'filter-item';
-            filterItem.innerHTML = `
-                <label for="${category}">${categoryEmojis[category]} ${categoryLabels[category]}</label>
-                <input type="range" id="${category}" min="1" max="5" value="${defaultValues[category]}" class="filter-slider">
-                <span class="filter-value">${defaultValues[category]}</span>
-            `;
-            filterGrid.appendChild(filterItem);
+            
+            const label = document.createElement('label');
+            label.setAttribute('for', category);
+            label.innerHTML = `${display.emoji} ${display.name}`;
+            
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.id = category;
+            slider.min = '1';
+            slider.max = '5';
+            slider.value = category === 'conflict' || category === 'sexuality' ? '1' : '4'; // Default values
+            slider.className = 'filter-slider';
+            
+            const valueSpan = document.createElement('span');
+            valueSpan.className = 'filter-value';
+            valueSpan.textContent = slider.value;
+            
+            // Add event listener for the slider
+            slider.addEventListener('input', function() {
+                valueSpan.textContent = this.value;
+                updateAvailableCount();
+                checkStartButtonState();
+            });
+            
+            filterItem.appendChild(label);
+            filterItem.appendChild(slider);
+            filterItem.appendChild(valueSpan);
+            
+            filterContainer.appendChild(filterItem);
         });
         
-        // Add event listeners to the newly created sliders
-        addSliderEventListeners();
-        
-        console.log('Loaded categories:', categories);
+        console.log(`Loaded ${categories.length} categories from API`);
     } catch (error) {
         console.error('Error loading categories:', error);
+        // Add fallback content if API fails
+        const filterContainer = document.querySelector('.filter-grid');
+        if (filterContainer) {
+            filterContainer.innerHTML = '<p style="color: red;">Error loading categories. Please refresh the page.</p>';
+        }
     }
 }
+
 
 // Setup event listeners
 function setupEventListeners() {
@@ -190,7 +244,11 @@ function setupEventListeners() {
     nextBtn.addEventListener('click', showNextQuestion);
     questionCountInput.addEventListener('input', updateAvailableCount);
     
-    // Deck filter event listeners will be added dynamically in loadDecks function
+    // Deck filter event listeners
+    const deckCheckboxes = document.querySelectorAll('.deck-checkbox input[type="checkbox"]');
+    deckCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateAvailableCount);
+    });
     
     // Add touch/swipe support for mobile
     let startX = 0;
@@ -225,62 +283,30 @@ function setupEventListeners() {
 // Setup filter sliders
 function setupFilterSliders() {
     // This will be called after categories are loaded dynamically
-    // The event listeners will be added in the loadCategories function
-}
-
-// Add event listeners to dynamically created sliders
-function addSliderEventListeners() {
-    const sliders = document.querySelectorAll('.filter-item input[type="range"]');
-    sliders.forEach(slider => {
-        const valueSpan = slider.nextElementSibling;
-        
-        slider.addEventListener('input', function() {
-            valueSpan.textContent = this.value;
-            updateAvailableCount();
-            checkStartButtonState();
-        });
-    });
+    // We'll set up event listeners in the loadCategories function
 }
 
 // Update available question count based on filters
-async function updateAvailableCount() {
-    try {
-        // Get selected decks
-        const selectedDecks = getSelectedDecks();
+function updateAvailableCount() {
+    // Get selected decks
+    const selectedDecks = getSelectedDecks();
+    
+    filteredQuestions = allQuestions.filter(question => {
+        // Check if question is from a selected deck
+        const isFromSelectedDeck = selectedDecks.includes(question.sourceFile);
+        if (!isFromSelectedDeck) return false;
         
-        // Get category filters
-        const categoryFilters = {};
-        const categoryElements = document.querySelectorAll('.filter-item input[type="range"]');
-        categoryElements.forEach(slider => {
-            categoryFilters[slider.id] = parseInt(slider.value);
+        // Check category filters - get all category sliders dynamically
+        const categorySliders = document.querySelectorAll('.filter-slider');
+        return Array.from(categorySliders).every(slider => {
+            const sliderValue = parseInt(slider.value);
+            const questionValue = getQuestionCategoryValue(question, slider.id);
+            return questionValue <= sliderValue;
         });
-        
-        // Call Flask API to get filtered questions
-        const response = await fetch('/api/questions/filter', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                decks: selectedDecks,
-                categories: categoryFilters,
-                maxQuestions: 16
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        filteredQuestions = data.questions;
-        
-        availableCountSpan.textContent = `${filteredQuestions.length} / ${allQuestions.length}`;
-        checkStartButtonState();
-    } catch (error) {
-        console.error('Error updating available count:', error);
-        availableCountSpan.textContent = 'Error loading count';
-    }
+    });
+    
+    availableCountSpan.textContent = `${filteredQuestions.length} / ${allQuestions.length}`;
+    checkStartButtonState();
 }
 
 // Get selected decks from checkboxes
@@ -290,11 +316,10 @@ function getSelectedDecks() {
     
     deckCheckboxes.forEach(checkbox => {
         if (checkbox.checked) {
-            // Map checkbox ID back to sourceFile
+            // Extract filename from checkbox ID
             const checkboxId = checkbox.id;
-            // Convert deck-36-questions back to the_36_questions.json
-            const sourceFile = checkboxId.replace('deck-', '').replace('-', '_') + '.json';
-            selectedDecks.push(sourceFile);
+            const filename = checkboxId.replace('deck-', '').replace(/-/g, '_') + '.json';
+            selectedDecks.push(filename);
         }
     });
     
@@ -303,18 +328,8 @@ function getSelectedDecks() {
 
 // Get category value from question object
 function getQuestionCategoryValue(question, category) {
-    const mapping = {
-        'vulnerability': 'vulnerability',
-        'sexuality': 'sexuality',
-        'personal-history': 'personalHistory',
-        'humor': 'humor',
-        'self-reflection': 'selfReflection',
-        'embarrassment': 'embarrassment',
-        'depth': 'depth',
-        'conflict': 'conflict'
-    };
-    
-    return question.categories[mapping[category]] || 1;
+    // The category parameter now matches the API category names directly
+    return question.categories[category] || 1;
 }
 
 // Check if start button should be enabled
@@ -332,66 +347,33 @@ function checkStartButtonState() {
 }
 
 // Start the game
-async function startGame() {
+function startGame() {
     const requestedCount = parseInt(questionCountInput.value);
+    
+    if (requestedCount > filteredQuestions.length) {
+        alert('Not enough questions available with current filters!');
+        return;
+    }
     
     if (requestedCount < 1 || requestedCount > 16) {
         alert('Please select between 1 and 16 questions!');
         return;
     }
     
-    try {
-        // Get selected decks
-        const selectedDecks = getSelectedDecks();
-        
-        // Get category filters
-        const categoryFilters = {};
-        const categoryElements = document.querySelectorAll('.filter-item input[type="range"]');
-        categoryElements.forEach(slider => {
-            categoryFilters[slider.id] = parseInt(slider.value);
-        });
-        
-        // Call Flask API to get filtered questions
-        const response = await fetch('/api/questions/filter', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                decks: selectedDecks,
-                categories: categoryFilters,
-                maxQuestions: requestedCount
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        selectedQuestions = data.questions;
-        
-        if (selectedQuestions.length < requestedCount) {
-            alert(`Only ${selectedQuestions.length} questions available with current filters!`);
-            return;
-        }
-        
-        currentQuestionIndex = 0;
-        
-        // Switch to game phase
-        setupPhase.classList.remove('active');
-        gamePhase.classList.add('active');
-        document.body.classList.add('game-active');
-        
-        // Update UI
-        totalCardsSpan.textContent = selectedQuestions.length;
-        showCurrentQuestion();
-        updateNavigation();
-        updateProgress();
-    } catch (error) {
-        console.error('Error starting game:', error);
-        alert('Error starting game. Please try again.');
-    }
+    // Randomly select questions
+    selectedQuestions = getRandomQuestions(filteredQuestions, requestedCount);
+    currentQuestionIndex = 0;
+    
+    // Switch to game phase
+    setupPhase.classList.remove('active');
+    gamePhase.classList.add('active');
+    document.body.classList.add('game-active');
+    
+    // Update UI
+    totalCardsSpan.textContent = selectedQuestions.length;
+    showCurrentQuestion();
+    updateNavigation();
+    updateProgress();
 }
 
 // Get random questions from filtered list
@@ -409,12 +391,16 @@ function showCurrentQuestion() {
     
     // Update category tags
     categoryTags.innerHTML = '';
-    Object.keys(categoryMapping).forEach(category => {
+    const categorySliders = document.querySelectorAll('.filter-slider');
+    Array.from(categorySliders).forEach(slider => {
+        const category = slider.id;
         const value = getQuestionCategoryValue(question, category);
         if (value >= 3) { // Only show categories with medium to high values
             const tag = document.createElement('span');
             tag.className = `category-tag ${value >= 4 ? 'high' : ''}`;
-            tag.textContent = categoryNames[category];
+            // Use the label text from the slider's label
+            const label = document.querySelector(`label[for="${category}"]`);
+            tag.textContent = label ? label.textContent.replace(/^[^\s]*\s/, '') : category; // Remove emoji
             categoryTags.appendChild(tag);
         }
     });
@@ -503,9 +489,13 @@ document.addEventListener('keydown', function(e) {
 // Save filter preferences to localStorage
 function saveFilterPreferences() {
     const preferences = {};
-    Object.keys(categoryMapping).forEach(category => {
-        preferences[category] = document.getElementById(category).value;
+    
+    // Save category preferences
+    const categorySliders = document.querySelectorAll('.filter-slider');
+    Array.from(categorySliders).forEach(slider => {
+        preferences[slider.id] = slider.value;
     });
+    
     preferences.questionCount = questionCountInput.value;
     
     // Save deck preferences
@@ -523,13 +513,16 @@ function loadFilterPreferences() {
     const saved = localStorage.getItem('questionCardPreferences');
     if (saved) {
         const preferences = JSON.parse(saved);
-        Object.keys(categoryMapping).forEach(category => {
-            if (preferences[category]) {
-                const slider = document.getElementById(category);
-                slider.value = preferences[category];
-                slider.nextElementSibling.textContent = preferences[category];
+        
+        // Load category preferences
+        const categorySliders = document.querySelectorAll('.filter-slider');
+        Array.from(categorySliders).forEach(slider => {
+            if (preferences[slider.id]) {
+                slider.value = preferences[slider.id];
+                slider.nextElementSibling.textContent = preferences[slider.id];
             }
         });
+        
         if (preferences.questionCount) {
             questionCountInput.value = preferences.questionCount;
         }
@@ -546,5 +539,25 @@ function loadFilterPreferences() {
     }
 }
 
-// Note: localStorage functionality removed for Flask version
-// Preferences can be added back if needed
+// Auto-save preferences when they change
+questionCountInput.addEventListener('change', saveFilterPreferences);
+
+// Auto-save preferences when they change (set up after dynamic content loads)
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        // Set up category slider listeners
+        const categorySliders = document.querySelectorAll('.filter-slider');
+        Array.from(categorySliders).forEach(slider => {
+            slider.addEventListener('change', saveFilterPreferences);
+        });
+        
+        // Set up deck checkbox listeners
+        const deckCheckboxes = document.querySelectorAll('.deck-checkbox input[type="checkbox"]');
+        deckCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', saveFilterPreferences);
+        });
+        
+        // Load preferences after everything is set up
+        loadFilterPreferences();
+    }, 200);
+});

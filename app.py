@@ -17,6 +17,9 @@ def load_questions():
 
 # Global variable to store questions data
 questions_data = load_questions()
+print(f"Loaded questions data: {len(questions_data.get('questions', []))} questions")
+print(f"Metadata sources: {questions_data.get('metadata', {}).get('sources', [])}")
+print(f"Categories: {questions_data.get('metadata', {}).get('categories', [])}")
 
 @app.route('/')
 def index():

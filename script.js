@@ -57,20 +57,132 @@ document.addEventListener('DOMContentLoaded', function() {
     setupFilterSliders();
 });
 
-// Load questions from JSON file
+// Load questions from API
 async function loadQuestions() {
     try {
-        const response = await fetch('all_questions.json');
+        const response = await fetch('/api/questions');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
         allQuestions = data.questions;
-        console.log(`Loaded ${allQuestions.length} questions from JSON`);
+        console.log(`Loaded ${allQuestions.length} questions from API`);
+        
+        // Load decks and categories dynamically
+        await loadDecks();
+        await loadCategories();
+        
         updateAvailableCount();
     } catch (error) {
         console.error('Error loading questions:', error);
-        alert('Error loading questions. Please make sure the JSON file is available.');
+        alert('Error loading questions. Please make sure the server is running.');
+    }
+}
+
+// Load decks from API and populate checkboxes
+async function loadDecks() {
+    try {
+        const response = await fetch('/api/decks');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const decks = await response.json();
+        
+        // Clear existing deck checkboxes
+        const deckContainer = document.querySelector('.deck-checkboxes');
+        deckContainer.innerHTML = '';
+        
+        // Create checkboxes for each deck
+        decks.forEach(deck => {
+            const label = document.createElement('label');
+            label.className = 'deck-checkbox';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `deck-${deck.filename.replace('.json', '').replace('_', '-')}`;
+            checkbox.checked = true; // Default to checked
+            
+            const span = document.createElement('span');
+            span.className = 'checkmark';
+            
+            label.appendChild(checkbox);
+            label.appendChild(span);
+            label.appendChild(document.createTextNode(` ${deck.displayName} (${deck.count})`));
+            
+            deckContainer.appendChild(label);
+        });
+        
+        console.log(`Loaded ${decks.length} decks from API`);
+    } catch (error) {
+        console.error('Error loading decks:', error);
+    }
+}
+
+// Load categories from API and populate sliders
+async function loadCategories() {
+    try {
+        const response = await fetch('/api/categories');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const categories = await response.json();
+        
+        // Clear existing category sliders
+        const filterContainer = document.querySelector('.filter-grid');
+        filterContainer.innerHTML = '';
+        
+        // Category display names and emojis
+        const categoryDisplay = {
+            'vulnerability': { name: 'Vulnerability', emoji: '💔' },
+            'sexuality': { name: 'Romance & Sexuality', emoji: '💕' },
+            'personalHistory': { name: 'Personal History', emoji: '📖' },
+            'humor': { name: 'Humor', emoji: '😄' },
+            'selfReflection': { name: 'Self-Reflection', emoji: '🤔' },
+            'embarrassment': { name: 'Embarrassment Potential', emoji: '😳' },
+            'depth': { name: 'Depth of Connection', emoji: '🔗' },
+            'conflict': { name: 'Conflict Potential', emoji: '⚡' }
+        };
+        
+        // Create sliders for each category
+        categories.forEach(category => {
+            const display = categoryDisplay[category] || { name: category, emoji: '📋' };
+            
+            const filterItem = document.createElement('div');
+            filterItem.className = 'filter-item';
+            
+            const label = document.createElement('label');
+            label.setAttribute('for', category);
+            label.innerHTML = `${display.emoji} ${display.name}`;
+            
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.id = category;
+            slider.min = '1';
+            slider.max = '5';
+            slider.value = category === 'conflict' || category === 'sexuality' ? '1' : '4'; // Default values
+            slider.className = 'filter-slider';
+            
+            const valueSpan = document.createElement('span');
+            valueSpan.className = 'filter-value';
+            valueSpan.textContent = slider.value;
+            
+            // Add event listener for the slider
+            slider.addEventListener('input', function() {
+                valueSpan.textContent = this.value;
+                updateAvailableCount();
+                checkStartButtonState();
+            });
+            
+            filterItem.appendChild(label);
+            filterItem.appendChild(slider);
+            filterItem.appendChild(valueSpan);
+            
+            filterContainer.appendChild(filterItem);
+        });
+        
+        console.log(`Loaded ${categories.length} categories from API`);
+    } catch (error) {
+        console.error('Error loading categories:', error);
     }
 }
 
@@ -121,16 +233,8 @@ function setupEventListeners() {
 
 // Setup filter sliders
 function setupFilterSliders() {
-    Object.keys(categoryMapping).forEach(category => {
-        const slider = document.getElementById(category);
-        const valueSpan = slider.nextElementSibling;
-        
-        slider.addEventListener('input', function() {
-            valueSpan.textContent = this.value;
-            updateAvailableCount();
-            checkStartButtonState();
-        });
-    });
+    // This will be called after categories are loaded dynamically
+    // We'll set up event listeners in the loadCategories function
 }
 
 // Update available question count based on filters
@@ -143,10 +247,11 @@ function updateAvailableCount() {
         const isFromSelectedDeck = selectedDecks.includes(question.sourceFile);
         if (!isFromSelectedDeck) return false;
         
-        // Check category filters
-        return Object.keys(categoryMapping).every(category => {
-            const sliderValue = parseInt(document.getElementById(category).value);
-            const questionValue = getQuestionCategoryValue(question, category);
+        // Check category filters - get all category sliders dynamically
+        const categorySliders = document.querySelectorAll('.filter-slider');
+        return Array.from(categorySliders).every(slider => {
+            const sliderValue = parseInt(slider.value);
+            const questionValue = getQuestionCategoryValue(question, slider.id);
             return questionValue <= sliderValue;
         });
     });
@@ -162,28 +267,10 @@ function getSelectedDecks() {
     
     deckCheckboxes.forEach(checkbox => {
         if (checkbox.checked) {
-            // Map checkbox ID to sourceFile
+            // Extract filename from checkbox ID
             const checkboxId = checkbox.id;
-            let sourceFile = '';
-            
-            switch(checkboxId) {
-                case 'deck-36-questions':
-                    sourceFile = 'the_36_questions.json';
-                    break;
-                case 'deck-dating':
-                    sourceFile = 'the_and_dating.json';
-                    break;
-                case 'deck-strangers':
-                    sourceFile = 'the_and_strangers.json';
-                    break;
-                case 'deck-truth-or-drink':
-                    sourceFile = 'truth_or_drink.json';
-                    break;
-            }
-            
-            if (sourceFile) {
-                selectedDecks.push(sourceFile);
-            }
+            const filename = checkboxId.replace('deck-', '').replace(/-/g, '_') + '.json';
+            selectedDecks.push(filename);
         }
     });
     
@@ -192,18 +279,8 @@ function getSelectedDecks() {
 
 // Get category value from question object
 function getQuestionCategoryValue(question, category) {
-    const mapping = {
-        'vulnerability': 'vulnerability',
-        'sexuality': 'sexuality',
-        'personal-history': 'personalHistory',
-        'humor': 'humor',
-        'self-reflection': 'selfReflection',
-        'embarrassment': 'embarrassment',
-        'depth': 'depth',
-        'conflict': 'conflict'
-    };
-    
-    return question.categories[mapping[category]] || 1;
+    // The category parameter now matches the API category names directly
+    return question.categories[category] || 1;
 }
 
 // Check if start button should be enabled
@@ -265,12 +342,16 @@ function showCurrentQuestion() {
     
     // Update category tags
     categoryTags.innerHTML = '';
-    Object.keys(categoryMapping).forEach(category => {
+    const categorySliders = document.querySelectorAll('.filter-slider');
+    Array.from(categorySliders).forEach(slider => {
+        const category = slider.id;
         const value = getQuestionCategoryValue(question, category);
         if (value >= 3) { // Only show categories with medium to high values
             const tag = document.createElement('span');
             tag.className = `category-tag ${value >= 4 ? 'high' : ''}`;
-            tag.textContent = categoryNames[category];
+            // Use the label text from the slider's label
+            const label = document.querySelector(`label[for="${category}"]`);
+            tag.textContent = label ? label.textContent.replace(/^[^\s]*\s/, '') : category; // Remove emoji
             categoryTags.appendChild(tag);
         }
     });
@@ -359,9 +440,13 @@ document.addEventListener('keydown', function(e) {
 // Save filter preferences to localStorage
 function saveFilterPreferences() {
     const preferences = {};
-    Object.keys(categoryMapping).forEach(category => {
-        preferences[category] = document.getElementById(category).value;
+    
+    // Save category preferences
+    const categorySliders = document.querySelectorAll('.filter-slider');
+    Array.from(categorySliders).forEach(slider => {
+        preferences[slider.id] = slider.value;
     });
+    
     preferences.questionCount = questionCountInput.value;
     
     // Save deck preferences
@@ -379,13 +464,16 @@ function loadFilterPreferences() {
     const saved = localStorage.getItem('questionCardPreferences');
     if (saved) {
         const preferences = JSON.parse(saved);
-        Object.keys(categoryMapping).forEach(category => {
-            if (preferences[category]) {
-                const slider = document.getElementById(category);
-                slider.value = preferences[category];
-                slider.nextElementSibling.textContent = preferences[category];
+        
+        // Load category preferences
+        const categorySliders = document.querySelectorAll('.filter-slider');
+        Array.from(categorySliders).forEach(slider => {
+            if (preferences[slider.id]) {
+                slider.value = preferences[slider.id];
+                slider.nextElementSibling.textContent = preferences[slider.id];
             }
         });
+        
         if (preferences.questionCount) {
             questionCountInput.value = preferences.questionCount;
         }
@@ -403,22 +491,24 @@ function loadFilterPreferences() {
 }
 
 // Auto-save preferences when they change
-Object.keys(categoryMapping).forEach(category => {
-    document.getElementById(category).addEventListener('change', saveFilterPreferences);
-});
 questionCountInput.addEventListener('change', saveFilterPreferences);
 
-// Auto-save deck preferences when they change
+// Auto-save preferences when they change (set up after dynamic content loads)
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
+        // Set up category slider listeners
+        const categorySliders = document.querySelectorAll('.filter-slider');
+        Array.from(categorySliders).forEach(slider => {
+            slider.addEventListener('change', saveFilterPreferences);
+        });
+        
+        // Set up deck checkbox listeners
         const deckCheckboxes = document.querySelectorAll('.deck-checkbox input[type="checkbox"]');
         deckCheckboxes.forEach(checkbox => {
             checkbox.addEventListener('change', saveFilterPreferences);
         });
-    }, 100);
-});
-
-// Load preferences on startup
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(loadFilterPreferences, 100);
+        
+        // Load preferences after everything is set up
+        loadFilterPreferences();
+    }, 200);
 });

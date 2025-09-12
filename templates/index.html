@@ -28,8 +28,8 @@
                     <h3>Select Decks</h3>
                     <p class="filter-help">Choose which question decks to draw from:</p>
                     
-                    <div class="deck-checkboxes" id="deck-checkboxes">
-                        <!-- Deck checkboxes will be populated by JavaScript -->
+                    <div class="deck-checkboxes">
+                        <!-- Deck checkboxes will be populated dynamically -->
                     </div>
                 </div>
 
@@ -38,8 +38,8 @@
                     <h3>Filter by Categories</h3>
                     <p class="filter-help">Set maximum intensity levels (1-5) for each category:</p>
                     
-                    <div class="filter-grid" id="filter-grid">
-                        <!-- Category filters will be populated by JavaScript -->
+                    <div class="filter-grid">
+                        <!-- Category sliders will be populated dynamically -->
                     </div>
                 </div>
 
@@ -108,5 +108,14 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script>
+        // Simple test to verify JavaScript is loading
+        console.log('JavaScript is loading...');
+        setTimeout(() => {
+            console.log('Checking if elements exist:');
+            console.log('Deck container:', document.querySelector('.deck-checkboxes'));
+            console.log('Filter container:', document.querySelector('.filter-grid'));
+        }, 1000);
+    </script>
 </body>
 </html>
