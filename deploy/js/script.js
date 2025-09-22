@@ -52,14 +52,34 @@ const nextBtn = document.getElementById('next-btn');
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
-    loadQuestions();
-    setupEventListeners();
-    setupFilterSliders();
+    console.log('DOM Content Loaded - starting initialization');
+    
+    // Initialize with a delay to ensure everything is ready
+    setTimeout(async () => {
+        try {
+            await loadQuestions();
+            setupEventListeners();
+            console.log('Initialization complete');
+        } catch (error) {
+            console.error('Initialization failed:', error);
+            // Show error message to user
+            const deckContainer = document.querySelector('.deck-checkboxes');
+            const filterContainer = document.querySelector('.filter-grid');
+            
+            if (deckContainer) {
+                deckContainer.innerHTML = '<p style="color: red;">Error loading decks. Please refresh the page.</p>';
+            }
+            if (filterContainer) {
+                filterContainer.innerHTML = '<p style="color: red;">Error loading categories. Please refresh the page.</p>';
+            }
+        }
+    }, 100);
 });
 
 // Load questions from API
 async function loadQuestions() {
     try {
+        console.log('Starting to load questions from API...');
         const response = await fetch('/api/questions');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -69,9 +89,12 @@ async function loadQuestions() {
         console.log(`Loaded ${allQuestions.length} questions from API`);
         
         // Load decks and categories dynamically
+        console.log('Loading decks...');
         await loadDecks();
+        console.log('Loading categories...');
         await loadCategories();
         
+        console.log('Updating available count...');
         updateAvailableCount();
     } catch (error) {
         console.error('Error loading questions:', error);
@@ -82,14 +105,22 @@ async function loadQuestions() {
 // Load decks from API and populate checkboxes
 async function loadDecks() {
     try {
+        console.log('Loading decks from API...');
         const response = await fetch('/api/decks');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const decks = await response.json();
+        console.log('Decks received:', decks);
         
         // Clear existing deck checkboxes
         const deckContainer = document.querySelector('.deck-checkboxes');
+        console.log('Deck container found:', deckContainer);
+        
+        if (!deckContainer) {
+            throw new Error('Deck container not found in DOM');
+        }
+        
         deckContainer.innerHTML = '';
         
         // Create checkboxes for each deck
@@ -115,20 +146,33 @@ async function loadDecks() {
         console.log(`Loaded ${decks.length} decks from API`);
     } catch (error) {
         console.error('Error loading decks:', error);
+        // Add fallback content if API fails
+        const deckContainer = document.querySelector('.deck-checkboxes');
+        if (deckContainer) {
+            deckContainer.innerHTML = '<p style="color: red;">Error loading decks. Please refresh the page.</p>';
+        }
     }
 }
 
 // Load categories from API and populate sliders
 async function loadCategories() {
     try {
+        console.log('Loading categories from API...');
         const response = await fetch('/api/categories');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const categories = await response.json();
+        console.log('Categories received:', categories);
         
         // Clear existing category sliders
         const filterContainer = document.querySelector('.filter-grid');
+        console.log('Filter container found:', filterContainer);
+        
+        if (!filterContainer) {
+            throw new Error('Filter container not found in DOM');
+        }
+        
         filterContainer.innerHTML = '';
         
         // Category display names and emojis
@@ -183,6 +227,11 @@ async function loadCategories() {
         console.log(`Loaded ${categories.length} categories from API`);
     } catch (error) {
         console.error('Error loading categories:', error);
+        // Add fallback content if API fails
+        const filterContainer = document.querySelector('.filter-grid');
+        if (filterContainer) {
+            filterContainer.innerHTML = '<p style="color: red;">Error loading categories. Please refresh the page.</p>';
+        }
     }
 }
 

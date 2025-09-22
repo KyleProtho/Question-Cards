@@ -1,0 +1,175 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # Build job
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        
+      - name: Build static site
+        run: |
+          # Create deployment directory
+          mkdir -p _site
+          
+          # Copy static files
+          cp -r static/* _site/
+          
+          # Copy data files
+          mkdir -p _site/data
+          cp all_questions.json _site/data/
+          
+          # Create index.html for GitHub Pages
+          cat > _site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Question Cards</title>
+              <link rel="preconnect" href="https://fonts.googleapis.com">
+              <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+              <link href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+              <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+              <link rel="stylesheet" href="css/styles.css">
+          </head>
+          <body>
+              <div class="container">
+                  <!-- Header -->
+                  <header class="header">
+                      <h1>Question Cards</h1>
+                      <p>Conversation starters for fun and meaningful connections</p>
+                  </header>
+
+                  <!-- Setup Phase -->
+                  <div id="setup-phase" class="phase active">
+                      <div class="setup-container">
+                          <h2>Customize Your Questions</h2>
+                          
+                          <!-- Deck Filter -->
+                          <div class="deck-filter-section">
+                              <h3>Select Decks</h3>
+                              <p class="filter-help">Choose which question decks to draw from:</p>
+                              
+                              <div class="deck-checkboxes">
+                                  <!-- Deck checkboxes will be populated dynamically -->
+                              </div>
+                          </div>
+
+                          <!-- Category Filters -->
+                          <div class="filters-section">
+                              <h3>Filter by Categories</h3>
+                              <p class="filter-help">Set maximum intensity levels (1-5) for each category:</p>
+                              
+                              <div class="filter-grid">
+                                  <!-- Category sliders will be populated dynamically -->
+                              </div>
+                          </div>
+
+                          <!-- Number of Questions -->
+                          <div class="question-count-section">
+                              <label for="question-count">How many questions do you want?</label>
+                              <input type="number" id="question-count" min="1" max="16" value="10" class="question-input">
+                              <div class="available-count">
+                                  Eligible questions: <span id="available-count">0</span>
+                              </div>
+                          </div>
+
+                          <!-- Start Button -->
+                          <button id="start-game" class="start-btn" disabled>
+                              Start Drawing Cards
+                          </button>
+                      </div>
+                  </div>
+
+                  <!-- Game Phase -->
+                  <div id="game-phase" class="phase">
+                      <div class="game-container">
+                          <!-- Progress -->
+                          <div class="progress-section">
+                              <div class="progress-info">
+                                  <span id="current-card">1</span> of <span id="total-cards">10</span>
+                              </div>
+                              <div class="progress-bar">
+                                  <div id="progress-fill" class="progress-fill"></div>
+                              </div>
+                          </div>
+
+                          <!-- Question Card -->
+                          <div class="question-card">
+                              <div class="card-content">
+                                  <div class="question-text" id="question-text">
+                                      Loading your question...
+                                  </div>
+                                  
+                                  <div class="question-meta">
+                                      <div class="category-tags" id="category-tags">
+                                          <!-- Category indicators will be added here -->
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+
+                          <!-- Navigation -->
+                          <div class="navigation">
+                              <button id="prev-btn" class="nav-btn" disabled>
+                                  ← Previous
+                              </button>
+                              <button id="next-btn" class="nav-btn">
+                                  Next →
+                              </button>
+                          </div>
+
+                          <!-- Actions -->
+                          <div class="game-actions">
+                              <button id="new-game-btn" class="action-btn secondary">
+                                  🔄 New Game
+                              </button>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              <script src="js/static-script.js"></script>
+          </body>
+          </html>
+          EOF
+          
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '_site'
+
+  # Deployment job
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

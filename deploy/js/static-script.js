@@ -1,0 +1,559 @@
+// Global variables
+let allQuestions = [];
+let filteredQuestions = [];
+let selectedQuestions = [];
+let currentQuestionIndex = 0;
+let questionsData = null;
+
+// Category mapping to CSV columns
+const categoryMapping = {
+    'vulnerability': 2,
+    'sexuality': 3,
+    'personal-history': 4,
+    'humor': 5,
+    'self-reflection': 6,
+    'embarrassment': 7,
+    'depth': 8,
+    'conflict': 9
+};
+
+// Deck mapping from sourceFile to display names
+const deckMapping = {
+    'the_36_questions.json': '36 Questions',
+    'the_and_dating.json': 'Dating',
+    'the_and_strangers.json': 'Strangers',
+    'truth_or_drink.json': 'Truth or Drink'
+};
+
+const categoryNames = {
+    'vulnerability': 'Vulnerable',
+    'sexuality': 'Intimate',
+    'personal-history': 'Personal',
+    'humor': 'Funny',
+    'self-reflection': 'Reflective',
+    'embarrassment': 'Embarrassing',
+    'depth': 'Deep',
+    'conflict': 'Intense'
+};
+
+// DOM elements
+const setupPhase = document.getElementById('setup-phase');
+const gamePhase = document.getElementById('game-phase');
+const startBtn = document.getElementById('start-game');
+const newGameBtn = document.getElementById('new-game-btn');
+const questionCountInput = document.getElementById('question-count');
+const availableCountSpan = document.getElementById('available-count');
+const questionText = document.getElementById('question-text');
+const categoryTags = document.getElementById('category-tags');
+const currentCardSpan = document.getElementById('current-card');
+const totalCardsSpan = document.getElementById('total-cards');
+const progressFill = document.getElementById('progress-fill');
+const prevBtn = document.getElementById('prev-btn');
+const nextBtn = document.getElementById('next-btn');
+
+// Initialize app
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded - starting initialization');
+    
+    // Initialize with a delay to ensure everything is ready
+    setTimeout(async () => {
+        try {
+            await loadQuestions();
+            setupEventListeners();
+            console.log('Initialization complete');
+        } catch (error) {
+            console.error('Initialization failed:', error);
+            // Show error message to user
+            const deckContainer = document.querySelector('.deck-checkboxes');
+            const filterContainer = document.querySelector('.filter-grid');
+            
+            if (deckContainer) {
+                deckContainer.innerHTML = '<p style="color: red;">Error loading questions data. Please refresh the page.</p>';
+            }
+            if (filterContainer) {
+                filterContainer.innerHTML = '<p style="color: red;">Error loading categories. Please refresh the page.</p>';
+            }
+        }
+    }, 100);
+});
+
+// Load questions from JSON file (static version)
+async function loadQuestions() {
+    try {
+        console.log('Starting to load questions from JSON file...');
+        const response = await fetch('data/all_questions.json');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        questionsData = await response.json();
+        allQuestions = questionsData.questions;
+        console.log(`Loaded ${allQuestions.length} questions from JSON file`);
+        
+        // Load decks and categories from the loaded data
+        console.log('Loading decks...');
+        loadDecks();
+        console.log('Loading categories...');
+        loadCategories();
+        
+        console.log('Updating available count...');
+        updateAvailableCount();
+    } catch (error) {
+        console.error('Error loading questions:', error);
+        alert('Error loading questions. Please make sure the data files are available.');
+    }
+}
+
+// Load decks from loaded data and populate checkboxes
+function loadDecks() {
+    try {
+        console.log('Loading decks from data...');
+        
+        if (!questionsData || !questionsData.metadata || !questionsData.metadata.sources) {
+            throw new Error('No deck metadata found');
+        }
+        
+        const sources = questionsData.metadata.sources;
+        console.log('Sources found:', sources);
+        
+        // Clear existing deck checkboxes
+        const deckContainer = document.querySelector('.deck-checkboxes');
+        console.log('Deck container found:', deckContainer);
+        
+        if (!deckContainer) {
+            throw new Error('Deck container not found in DOM');
+        }
+        
+        deckContainer.innerHTML = '';
+        
+        // Create checkboxes for each deck
+        sources.forEach(source => {
+            const label = document.createElement('label');
+            label.className = 'deck-checkbox';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `deck-${source.filename.replace('.json', '').replace('_', '-')}`;
+            checkbox.checked = true; // Default to checked
+            
+            const span = document.createElement('span');
+            span.className = 'checkmark';
+            
+            label.appendChild(checkbox);
+            label.appendChild(span);
+            label.appendChild(document.createTextNode(` ${source.filename.replace('.json', '').replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} (${source.originalQuestions})`));
+            
+            deckContainer.appendChild(label);
+        });
+        
+        console.log(`Loaded ${sources.length} decks from data`);
+    } catch (error) {
+        console.error('Error loading decks:', error);
+        // Add fallback content if data fails
+        const deckContainer = document.querySelector('.deck-checkboxes');
+        if (deckContainer) {
+            deckContainer.innerHTML = '<p style="color: red;">Error loading decks. Please refresh the page.</p>';
+        }
+    }
+}
+
+// Load categories from loaded data and populate sliders
+function loadCategories() {
+    try {
+        console.log('Loading categories from data...');
+        
+        if (!questionsData || !questionsData.metadata || !questionsData.metadata.categories) {
+            throw new Error('No category metadata found');
+        }
+        
+        const categories = questionsData.metadata.categories;
+        console.log('Categories found:', categories);
+        
+        // Clear existing category sliders
+        const filterContainer = document.querySelector('.filter-grid');
+        console.log('Filter container found:', filterContainer);
+        
+        if (!filterContainer) {
+            throw new Error('Filter container not found in DOM');
+        }
+        
+        filterContainer.innerHTML = '';
+        
+        // Category display names and emojis
+        const categoryDisplay = {
+            'vulnerability': { name: 'Vulnerability', emoji: '💔' },
+            'sexuality': { name: 'Romance & Sexuality', emoji: '💕' },
+            'personalHistory': { name: 'Personal History', emoji: '📖' },
+            'humor': { name: 'Humor', emoji: '😄' },
+            'selfReflection': { name: 'Self-Reflection', emoji: '🤔' },
+            'embarrassment': { name: 'Embarrassment Potential', emoji: '😳' },
+            'depth': { name: 'Depth of Connection', emoji: '🔗' },
+            'conflict': { name: 'Conflict Potential', emoji: '⚡' }
+        };
+        
+        // Create sliders for each category
+        categories.forEach(category => {
+            const display = categoryDisplay[category] || { name: category, emoji: '📋' };
+            
+            const filterItem = document.createElement('div');
+            filterItem.className = 'filter-item';
+            
+            const label = document.createElement('label');
+            label.setAttribute('for', category);
+            label.innerHTML = `${display.emoji} ${display.name}`;
+            
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.id = category;
+            slider.min = '1';
+            slider.max = '5';
+            slider.value = category === 'conflict' || category === 'sexuality' ? '1' : '4'; // Default values
+            slider.className = 'filter-slider';
+            
+            const valueSpan = document.createElement('span');
+            valueSpan.className = 'filter-value';
+            valueSpan.textContent = slider.value;
+            
+            // Add event listener for the slider
+            slider.addEventListener('input', function() {
+                valueSpan.textContent = this.value;
+                updateAvailableCount();
+                checkStartButtonState();
+            });
+            
+            filterItem.appendChild(label);
+            filterItem.appendChild(slider);
+            filterItem.appendChild(valueSpan);
+            
+            filterContainer.appendChild(filterItem);
+        });
+        
+        console.log(`Loaded ${categories.length} categories from data`);
+    } catch (error) {
+        console.error('Error loading categories:', error);
+        // Add fallback content if data fails
+        const filterContainer = document.querySelector('.filter-grid');
+        if (filterContainer) {
+            filterContainer.innerHTML = '<p style="color: red;">Error loading categories. Please refresh the page.</p>';
+        }
+    }
+}
+
+// Setup event listeners
+function setupEventListeners() {
+    startBtn.addEventListener('click', startGame);
+    newGameBtn.addEventListener('click', resetToSetup);
+    prevBtn.addEventListener('click', showPreviousQuestion);
+    nextBtn.addEventListener('click', showNextQuestion);
+    questionCountInput.addEventListener('input', updateAvailableCount);
+    
+    // Deck filter event listeners
+    const deckCheckboxes = document.querySelectorAll('.deck-checkbox input[type="checkbox"]');
+    deckCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateAvailableCount);
+    });
+    
+    // Add touch/swipe support for mobile
+    let startX = 0;
+    let startY = 0;
+    
+    document.addEventListener('touchstart', function(e) {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+    });
+    
+    document.addEventListener('touchend', function(e) {
+        if (!gamePhase.classList.contains('active')) return;
+        
+        const endX = e.changedTouches[0].clientX;
+        const endY = e.changedTouches[0].clientY;
+        const diffX = startX - endX;
+        const diffY = startY - endY;
+        
+        // Only handle horizontal swipes
+        if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+            if (diffX > 0 && currentQuestionIndex < selectedQuestions.length - 1) {
+                // Swipe left - next question
+                showNextQuestion();
+            } else if (diffX < 0 && currentQuestionIndex > 0) {
+                // Swipe right - previous question
+                showPreviousQuestion();
+            }
+        }
+    });
+}
+
+// Update available question count based on filters
+function updateAvailableCount() {
+    // Get selected decks
+    const selectedDecks = getSelectedDecks();
+    
+    filteredQuestions = allQuestions.filter(question => {
+        // Check if question is from a selected deck
+        const isFromSelectedDeck = selectedDecks.includes(question.sourceFile);
+        if (!isFromSelectedDeck) return false;
+        
+        // Check category filters - get all category sliders dynamically
+        const categorySliders = document.querySelectorAll('.filter-slider');
+        return Array.from(categorySliders).every(slider => {
+            const sliderValue = parseInt(slider.value);
+            const questionValue = getQuestionCategoryValue(question, slider.id);
+            return questionValue <= sliderValue;
+        });
+    });
+    
+    availableCountSpan.textContent = `${filteredQuestions.length} / ${allQuestions.length}`;
+    checkStartButtonState();
+}
+
+// Get selected decks from checkboxes
+function getSelectedDecks() {
+    const selectedDecks = [];
+    const deckCheckboxes = document.querySelectorAll('.deck-checkbox input[type="checkbox"]');
+    
+    deckCheckboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            // Extract filename from checkbox ID
+            const checkboxId = checkbox.id;
+            const filename = checkboxId.replace('deck-', '').replace(/-/g, '_') + '.json';
+            selectedDecks.push(filename);
+        }
+    });
+    
+    return selectedDecks;
+}
+
+// Get category value from question object
+function getQuestionCategoryValue(question, category) {
+    // The category parameter now matches the API category names directly
+    return question.categories[category] || 1;
+}
+
+// Check if start button should be enabled
+function checkStartButtonState() {
+    const requestedCount = parseInt(questionCountInput.value);
+    const availableCount = filteredQuestions.length;
+    
+    startBtn.disabled = requestedCount > availableCount || requestedCount < 1 || requestedCount > 16 || availableCount === 0;
+    
+    if (requestedCount > availableCount || requestedCount > 16) {
+        questionCountInput.style.borderColor = '#e74c3c';
+    } else {
+        questionCountInput.style.borderColor = '#ddd';
+    }
+}
+
+// Start the game
+function startGame() {
+    const requestedCount = parseInt(questionCountInput.value);
+    
+    if (requestedCount > filteredQuestions.length) {
+        alert('Not enough questions available with current filters!');
+        return;
+    }
+    
+    if (requestedCount < 1 || requestedCount > 16) {
+        alert('Please select between 1 and 16 questions!');
+        return;
+    }
+    
+    // Randomly select questions
+    selectedQuestions = getRandomQuestions(filteredQuestions, requestedCount);
+    currentQuestionIndex = 0;
+    
+    // Switch to game phase
+    setupPhase.classList.remove('active');
+    gamePhase.classList.add('active');
+    document.body.classList.add('game-active');
+    
+    // Update UI
+    totalCardsSpan.textContent = selectedQuestions.length;
+    showCurrentQuestion();
+    updateNavigation();
+    updateProgress();
+}
+
+// Get random questions from filtered list
+function getRandomQuestions(questions, count) {
+    const shuffled = [...questions].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, count);
+}
+
+// Show current question
+function showCurrentQuestion() {
+    if (selectedQuestions.length === 0) return;
+    
+    const question = selectedQuestions[currentQuestionIndex];
+    questionText.textContent = question.text;
+    
+    // Update category tags
+    categoryTags.innerHTML = '';
+    const categorySliders = document.querySelectorAll('.filter-slider');
+    Array.from(categorySliders).forEach(slider => {
+        const category = slider.id;
+        const value = getQuestionCategoryValue(question, category);
+        if (value >= 3) { // Only show categories with medium to high values
+            const tag = document.createElement('span');
+            tag.className = `category-tag ${value >= 4 ? 'high' : ''}`;
+            // Use the label text from the slider's label
+            const label = document.querySelector(`label[for="${category}"]`);
+            tag.textContent = label ? label.textContent.replace(/^[^\s]*\s/, '') : category; // Remove emoji
+            categoryTags.appendChild(tag);
+        }
+    });
+    
+    currentCardSpan.textContent = currentQuestionIndex + 1;
+}
+
+// Show previous question
+function showPreviousQuestion() {
+    if (currentQuestionIndex > 0) {
+        currentQuestionIndex--;
+        showCurrentQuestion();
+        updateNavigation();
+        updateProgress();
+    }
+}
+
+// Show next question
+function showNextQuestion() {
+    if (currentQuestionIndex < selectedQuestions.length - 1) {
+        currentQuestionIndex++;
+        showCurrentQuestion();
+        updateNavigation();
+        updateProgress();
+    }
+}
+
+// Update navigation button states
+function updateNavigation() {
+    const isLastQuestion = currentQuestionIndex === selectedQuestions.length - 1;
+    
+    prevBtn.disabled = currentQuestionIndex === 0;
+    nextBtn.disabled = isLastQuestion;
+    
+    // Add primary styling to Next button (except on last question)
+    if (isLastQuestion) {
+        nextBtn.classList.remove('primary');
+        newGameBtn.classList.add('primary');
+    } else {
+        nextBtn.classList.add('primary');
+        newGameBtn.classList.remove('primary');
+    }
+}
+
+// Update progress bar
+function updateProgress() {
+    const progress = ((currentQuestionIndex + 1) / selectedQuestions.length) * 100;
+    progressFill.style.width = `${progress}%`;
+}
+
+// Reset to setup phase
+function resetToSetup() {
+    gamePhase.classList.remove('active');
+    setupPhase.classList.add('active');
+    document.body.classList.remove('game-active');
+    
+    // Reset state
+    selectedQuestions = [];
+    currentQuestionIndex = 0;
+    
+    // Clear primary button styling
+    nextBtn.classList.remove('primary');
+    newGameBtn.classList.remove('primary');
+    
+    // Update filters and available count
+    updateAvailableCount();
+}
+
+// Add keyboard navigation
+document.addEventListener('keydown', function(e) {
+    if (!gamePhase.classList.contains('active')) return;
+    
+    switch(e.key) {
+        case 'ArrowLeft':
+            if (currentQuestionIndex > 0) showPreviousQuestion();
+            break;
+        case 'ArrowRight':
+            if (currentQuestionIndex < selectedQuestions.length - 1) showNextQuestion();
+            break;
+        case 'Escape':
+            resetToSetup();
+            break;
+    }
+});
+
+// Save filter preferences to localStorage
+function saveFilterPreferences() {
+    const preferences = {};
+    
+    // Save category preferences
+    const categorySliders = document.querySelectorAll('.filter-slider');
+    Array.from(categorySliders).forEach(slider => {
+        preferences[slider.id] = slider.value;
+    });
+    
+    preferences.questionCount = questionCountInput.value;
+    
+    // Save deck preferences
+    preferences.decks = {};
+    const deckCheckboxes = document.querySelectorAll('.deck-checkbox input[type="checkbox"]');
+    deckCheckboxes.forEach(checkbox => {
+        preferences.decks[checkbox.id] = checkbox.checked;
+    });
+    
+    localStorage.setItem('questionCardPreferences', JSON.stringify(preferences));
+}
+
+// Load filter preferences from localStorage
+function loadFilterPreferences() {
+    const saved = localStorage.getItem('questionCardPreferences');
+    if (saved) {
+        const preferences = JSON.parse(saved);
+        
+        // Load category preferences
+        const categorySliders = document.querySelectorAll('.filter-slider');
+        Array.from(categorySliders).forEach(slider => {
+            if (preferences[slider.id]) {
+                slider.value = preferences[slider.id];
+                slider.nextElementSibling.textContent = preferences[slider.id];
+            }
+        });
+        
+        if (preferences.questionCount) {
+            questionCountInput.value = preferences.questionCount;
+        }
+        
+        // Load deck preferences
+        if (preferences.decks) {
+            const deckCheckboxes = document.querySelectorAll('.deck-checkbox input[type="checkbox"]');
+            deckCheckboxes.forEach(checkbox => {
+                if (preferences.decks.hasOwnProperty(checkbox.id)) {
+                    checkbox.checked = preferences.decks[checkbox.id];
+                }
+            });
+        }
+    }
+}
+
+// Auto-save preferences when they change
+questionCountInput.addEventListener('change', saveFilterPreferences);
+
+// Auto-save preferences when they change (set up after dynamic content loads)
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        // Set up category slider listeners
+        const categorySliders = document.querySelectorAll('.filter-slider');
+        Array.from(categorySliders).forEach(slider => {
+            slider.addEventListener('change', saveFilterPreferences);
+        });
+        
+        // Set up deck checkbox listeners
+        const deckCheckboxes = document.querySelectorAll('.deck-checkbox input[type="checkbox"]');
+        Array.from(deckCheckboxes).forEach(checkbox => {
+            checkbox.addEventListener('change', saveFilterPreferences);
+        });
+        
+        // Load preferences after everything is set up
+        loadFilterPreferences();
+    }, 200);
+});
